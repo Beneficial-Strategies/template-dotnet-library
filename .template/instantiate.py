@@ -41,14 +41,16 @@ def files():
 def replace_text(replacements):
     for path in files():
         try:
-            text = path.read_text(encoding="utf-8", newline="")
+            with open(path, encoding="utf-8", newline="") as f:
+                text = f.read()
         except UnicodeDecodeError:
             continue
         new = text
         for old, value in replacements:
             new = new.replace(old, value)
         if new != text:
-            path.write_text(new, encoding="utf-8", newline="")
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write(new)
 
 
 def rename_paths(renames):
