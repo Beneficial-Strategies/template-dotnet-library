@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # One .NET 10 SDK builds every target framework; the SDK fetches the reference packs of the older ones.
+      # TreatWarningsAsErrors is set in Directory.Build.props, so this step is also the zero-warnings gate.
+      - name: Build (every target framework, zero warnings)
+        run: dotnet build -c Release
+
+      - name: Test (net8.0 and net10.0)
+        run: dotnet test -c Release --no-build
+
+      - name: Build and run the examples against the packed package
+        run: tools/run-examples.sh
+
+      - name: The README matches the examples
+        run: python3 tools/sync-readme.py --check
+
+      - name: The packed README renders on nuget.org, and the changelog has an entry for this version
+        run: python3 tools/package/prepare_package_files.py --check
+
+      - name: Check the licenses of the packages we depend on
+        run: tools/licenses/check.sh
+
+      - name: Test the release and package tooling
+        run: |
+          python3 -m unittest -q test_prepare_release
+          python3 -m unittest -q test_prepare_package_files
+        working-directory: tools/releasing
+        env:
+          PYTHONPATH: ../package
+
+  # A package that targets netstandard2.0 (for .NET Framework 4.6.1 and later, Mono, Unity) also needs a job that runs its tests on
+  # .NET Framework 4.8, which needs Windows: runs-on: windows-latest, and `dotnet test tests/<Tests project> -c Release -f net48`.
+  # The tests project adds net48 to its target frameworks on Windows (see the package this repository was made from, if it has one).

@@ -1,0 +1,74 @@
+name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # to create the GitHub Release for the tag once the package is on NuGet
+      id-token: write   # so GitHub can issue the OIDC token that NuGet trusted publishing exchanges for a short-lived API key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: The tag is the version in Directory.Build.props
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -1)
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      # Nothing is packed if a dependency has a license outside the allowed list.
+      - name: Check the licenses of the packages we depend on
+        run: tools/licenses/check.sh
+
+      - name: Build and test
+        run: |
+          dotnet build -c Release
+          dotnet test -c Release --no-build
+
+      - name: The README matches the examples
+        run: python3 tools/sync-readme.py --check
+
+      # The README for the package (cut at the marker, links pinned to the tag) and the release notes (the changelog entry).
+      - name: Prepare the README and the release notes of the package
+        run: python3 tools/package/prepare_package_files.py --version "$VERSION"
+
+      - name: Pack
+        run: |
+          for project in src/*/*.csproj; do
+            dotnet pack "$project" -c Release --no-build --output artifacts/packages
+          done
+
+      - name: Build and run the examples against the packed package
+        run: tools/run-examples.sh
+
+      # Trusted publishing: the OIDC token of this run is exchanged for an API key valid for one hour, matched against the policy
+      # made on nuget.org for this repository and this workflow file. "user" must be the nuget.org account that CREATED the policy,
+      # not the organization that owns the package; it is the repository variable NUGET_USER.
+      - name: NuGet login (OIDC to a temporary API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Push to NuGet
+        run: |
+          dotnet nuget push artifacts/packages/*.nupkg \
+            --api-key ${{ steps.login.outputs.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=()
+          case "$VERSION" in *-*) flags+=(--prerelease);; esac
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file artifacts/package/release-notes.txt "${flags[@]}"

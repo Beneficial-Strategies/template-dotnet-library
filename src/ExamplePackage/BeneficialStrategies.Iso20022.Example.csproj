@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The two newest .NET LTS releases. For an entry point for older systems (.NET Framework 4.6.1+, Mono, Unity) add netstandard2.0
+         (and the Polyfill package for it); that is the owner's decision, mostly for the packages at the base of a family. -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>BeneficialStrategies.Iso20022</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageFiles>$(MSBuildThisFileDirectory)..\..\artifacts\package\</PackageFiles>
+    <PackageId>BeneficialStrategies.Iso20022.Example</PackageId>
+    <PackageDescription>TEMPLATE_DESCRIPTION</PackageDescription>
+    <!-- The README and the release notes of a release are made by tools/package/prepare_package_files.py; without them (a local pack) the README of the repository is used. -->
+    <PackageReleaseNotes Condition="Exists('$(PackageFiles)release-notes.txt')">$([System.IO.File]::ReadAllText("$(PackageFiles)release-notes.txt"))</PackageReleaseNotes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(PackageFiles)README.md" Pack="true" PackagePath="\" Condition="Exists('$(PackageFiles)README.md')" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Condition="!Exists('$(PackageFiles)README.md')" />
+    <None Include="..\..\.beneficial\icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
