@@ -42,6 +42,7 @@ def package_readme(text, version, repository=None):
     if END_MARKER not in text:
         raise SystemExit(f"README.md has no line {END_MARKER}")
     packed = text.split(END_MARKER, 1)[0]
+    packed = re.sub(r"<!-- template-notice -->.*?<!-- /template-notice -->\n*", "", packed, flags=re.S)   # only in the template itself
     packed = re.sub(r"^<!-- /?snippet[^\n]*-->\n", "", packed, flags=re.MULTILINE)
     tag = f"v{version}"
     repository = repository or globals()["repository"]()

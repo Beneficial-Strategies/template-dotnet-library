@@ -20,6 +20,12 @@ class Readme(unittest.TestCase):
         self.assertIn(f"{BASE}/tree/v1.0.0-alpha/examples/01", out)
         self.assertEqual([], p.problems(out))
 
+    def test_the_notice_of_the_template_is_not_packed(self):
+        text = f"<!-- template-notice -->\n> see [x](.template/a.md)\n<!-- /template-notice -->\n\n# T\n{p.END_MARKER}\n"
+        out = p.package_readme(text, "1.0.0", "o/r")
+        self.assertNotIn("template", out)
+        self.assertEqual([], p.problems(out))
+
     def test_a_missing_marker_fails(self):
         with self.assertRaises(SystemExit):
             p.package_readme("# T\n", "1.0.0", "o/r")

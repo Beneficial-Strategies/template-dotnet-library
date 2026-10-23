@@ -15,4 +15,4 @@
 ## Not replaced, to do by hand
 * The placeholder type `Greeting`, its tests and `examples/01-hello`: replace them with the real package.
 * The target frameworks: the template has net8.0 and net10.0 (the two newest .NET LTS releases). Add `netstandard2.0` only on purpose, with its Windows test job.
-* The repository's About text, the labels and the repository variable `NUGET_USER`, and the trusted publishing policy on nuget.org, which the package owner creates for the repository and `publish.yml`.
+* The repository's About text, the labels (`tools/labels.sh`) and the repository variable `NUGET_USER`, and the trusted publishing policy on nuget.org, which the package owner creates for the repository and `publish.yml`.

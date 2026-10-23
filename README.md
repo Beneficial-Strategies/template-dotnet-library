@@ -1,7 +1,7 @@
 <!-- template-notice -->
 > **This is the template for a published .NET package** of the Beneficial Strategies family. It is a working skeleton, and what you read below is the README skeleton of the package it makes. To make a package: create a repository from this template (the green button), then in it run
 > `python3 .template/instantiate.py --repo <name> --package-id <PackageId> --description "<one sentence>."`
-> and follow what it prints. What it replaces is in [`.template/placeholders.md`](.template/placeholders.md).
+> and follow what it prints. What it replaces is in [`.template/placeholders.md`](https://github.com/Beneficial-Strategies/template-dotnet-library/blob/main/.template/placeholders.md).
 <!-- /template-notice -->
 
 ![Beneficial Strategies](https://raw.githubusercontent.com/Beneficial-Strategies/iso-20022-example/main/.beneficial/logo.png)

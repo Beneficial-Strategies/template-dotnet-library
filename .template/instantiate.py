@@ -108,7 +108,7 @@ def main():
 
 Next:
   1. Replace src/{short}/Greeting.cs, its test and examples/01-hello with the real package, its tests and its first example.
-  2. Set the repository's About text to the description; create the labels (see CONTRIBUTING.md); set NUGET_USER.
+  2. Set the repository's About text to the description; run tools/labels.sh to create the labels; set the repository variable NUGET_USER.
   3. python3 tools/sync-readme.py, then dotnet build -c Release, dotnet test -c Release --no-build and tools/run-examples.sh.
   4. Before the first release, the package owner creates the trusted publishing policy on nuget.org for this repository and publish.yml.""")
     return 0
