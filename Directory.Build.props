@@ -1,0 +1,37 @@
+<Project>
+
+  <!--
+    Package metadata shared by every project of the repository. Properties specific to the package (PackageId,
+    PackageDescription, the packed README) are in its own .csproj.
+  -->
+  <PropertyGroup>
+    <Version>1.0.0-alpha</Version>
+    <Authors>Jeff Ward,Beneficial Strategies</Authors>
+    <Company>BeneficialStrategies.com</Company>
+    <RepositoryUrl>https://github.com/Beneficial-Strategies/iso-20022-example</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <DebugType>embedded</DebugType>
+    <!-- Deterministic builds with source linking, so a package can be traced to the commit it was built from. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    Zero warnings: any warning not suppressed below fails the build, locally and in CI, so no warning goes unseen.
+  -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!--
+    CS0618/CS0612: obsolete-member-usage warnings are suppressed. The ISO 20022 standard retires types slowly, so active
+    types legitimately refer to obsolete ones (for example a derived code set that inherits ordinals from an obsolete base
+    code set). Build with -p:EnableObsoleteWarnings=true to audit them.
+  -->
+  <PropertyGroup Condition="'$(EnableObsoleteWarnings)' != 'true'">
+    <NoWarn>$(NoWarn);CS0618;CS0612</NoWarn>
+  </PropertyGroup>
+
+</Project>

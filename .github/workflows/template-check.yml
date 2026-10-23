@@ -1,0 +1,45 @@
+name: Template check
+
+# Proves that the template works: it is instantiated into a new folder, and the result is built, tested, its examples run,
+# and its README and changelog checked. Removed from a repository made from the template.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  instantiate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Instantiate a copy
+        run: |
+          rsync -a --exclude .git ./ "$RUNNER_TEMP/made/"
+          cd "$RUNNER_TEMP/made"
+          python3 .template/instantiate.py --repo iso-20022-sample --package-id BeneficialStrategies.Iso20022.Sample \
+            --description "A package that checks the template."
+
+      - name: Nothing of the template is left, and every placeholder is replaced
+        working-directory: ${{ runner.temp }}/made
+        run: |
+          test ! -e .template && test ! -e .github/workflows/template-check.yml
+          ! grep -rIl --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -e 'iso-20022-example' -e 'ExamplePackage' -e 'TEMPLATE_DESCRIPTION' -e 'YYYY' .
+          ls src/Sample tests/Sample.Tests
+
+      - name: Build, test, run the examples, check the README and the changelog
+        working-directory: ${{ runner.temp }}/made
+        run: |
+          python3 tools/sync-readme.py
+          dotnet build -c Release
+          dotnet test -c Release --no-build
+          tools/run-examples.sh
+          python3 tools/sync-readme.py --check
+          python3 tools/package/prepare_package_files.py --check
+          (cd tools/releasing && PYTHONPATH=../package python3 -m unittest -q test_prepare_release test_prepare_package_files)
