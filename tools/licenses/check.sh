@@ -14,7 +14,13 @@ fi
 projects=$(mktemp)
 printf '[' > "$projects"
 sep=""
-for project in src/*/*.csproj; do printf '%s"%s"' "$sep" "$project" >> "$projects"; sep=","; done
+for project in src/*/*.csproj; do
+  # A project that is not packed (a compiler component, for example) is not published: nothing of it reaches a consumer.
+  grep -q '<IsPackable>false</IsPackable>' "$project" && continue
+  # The tool reads what was restored, and the publish workflow runs this check before it builds.
+  dotnet restore "$project" --nologo -v q
+  printf '%s"%s"' "$sep" "$project" >> "$projects"; sep=","
+done
 printf ']' >> "$projects"
 
 nuget-license \
