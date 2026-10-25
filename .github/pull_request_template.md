@@ -27,3 +27,4 @@ Release note:
 ## Breaking change
 
 - [ ] This changes the public API or behaviour (a maintainer adds the `breaking-change` label, which raises the second part of the version; `redesign` raises the first)
+- [ ] This changes what a type accepts or writes (a maintainer adds `tightens`, `loosens` or `changes-output` to the issue; the first and the last count as breaking)

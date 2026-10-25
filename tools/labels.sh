@@ -7,6 +7,9 @@ while IFS='|' read -r name description; do
 done <<'LABELS'
 redesign|A redesign of the package: raises the first part of the version
 breaking-change|Changes the public API or behaviour: raises the second part of the version
+tightens|Refuses input the package used to accept: breaking, raises the second part of the version
+loosens|Accepts input the package used to refuse: compatible unless also breaking-change
+changes-output|Writes different text for the same value: breaking, raises the second part of the version
 ci|Build, test, publish and repository automation
 tech-debt|Cleanup that does not change behaviour
 needs-test|A bug without a test that reproduces it yet

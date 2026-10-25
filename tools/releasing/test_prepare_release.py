@@ -15,6 +15,17 @@ class Bump(unittest.TestCase):
         e = r.build_entries([issue(1, "a", "breaking-change"), issue(2, "b", "redesign")], {})
         self.assertEqual("design", r.choose_bump(e))
 
+    def test_tightening_and_a_changed_output_are_breaking_and_loosening_is_not(self):
+        for label in ("tightens", "changes-output"):
+            e = r.build_entries([issue(1, "a", "bug", label)], {})
+            self.assertEqual("breaking", r.choose_bump(e))
+            self.assertEqual("breaking", e[0]["category"])
+        e = r.build_entries([issue(1, "a", "bug", "loosens")], {})
+        self.assertEqual("compatible", r.choose_bump(e))
+        self.assertEqual("fixed", e[0]["category"])
+        e = r.build_entries([issue(1, "a", "loosens", "breaking-change")], {})
+        self.assertEqual("breaking", r.choose_bump(e))
+
     def test_everything_else_is_the_third_part(self):
         self.assertEqual("compatible", r.choose_bump(r.build_entries([issue(1, "a", "bug"), issue(2, "b", "documentation"), issue(3, "c", "enhancement")], {})))
 
@@ -42,6 +53,25 @@ class Entries(unittest.TestCase):
     def test_empty_release_note_placeholder_falls_back_to_the_title(self):
         e = r.build_entries([issue(5, "Title", "bug")], {5: ["Release note:\n"]})
         self.assertEqual("Title", e[0]["text"])
+
+
+class KnownIssues(unittest.TestCase):
+    def test_open_issues_are_known_issues_except_the_ones_a_consumer_does_not_need(self):
+        k = r.build_known_issues([
+            issue(3, "A limit", "help wanted"), issue(1, "A bug", "bug"), issue(2, "A wish", "enhancement"),
+            issue(4, "Tooling", "ci"), issue(5, "Skip", "bug", "no-release-notes"), issue(6, "New", "needs-triage"),
+        ])
+        self.assertEqual([1, 3], [x["number"] for x in k])
+
+    def test_known_issue_line_beats_the_title(self):
+        k = r.build_known_issues([issue(1, "Title", "bug", body="x\nKnown issue: Refuses Z.\n")])
+        self.assertEqual("Refuses Z.", k[0]["text"])
+
+    def test_known_issues_come_last_in_the_entry(self):
+        e = r.build_entries([issue(2, "Fix thing", "bug")], {})
+        k = r.build_known_issues([issue(9, "A limit", "help wanted")])
+        self.assertEqual(
+            "## 1.0.1 (2026-10-23)\n\n* Fixed: Fix thing (#2).\n* Known issue: A limit (#9).\n", r.render_entry("1.0.1", e, "2026-10-23", k))
 
 
 class Render(unittest.TestCase):
