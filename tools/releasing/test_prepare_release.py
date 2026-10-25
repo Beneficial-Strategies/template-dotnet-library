@@ -55,6 +55,16 @@ class Entries(unittest.TestCase):
         self.assertEqual("Title", e[0]["text"])
 
 
+class Stable(unittest.TestCase):
+    def test_the_stable_version_drops_the_suffix_and_keeps_the_numbers(self):
+        self.assertEqual("1.1.0", r.stable_version("1.1.0-alpha"))
+        self.assertEqual("1.0.1", r.stable_version("1.0.1-beta.2"))
+
+    def test_a_stable_version_has_no_stable_version(self):
+        with self.assertRaises(ValueError):
+            r.stable_version("1.1.0")
+
+
 class NextSteps(unittest.TestCase):
     def test_the_steps_use_the_version_and_say_why(self):
         text = r.next_steps("1.1.0-alpha", "https://github.com/o/r", "O.Package")

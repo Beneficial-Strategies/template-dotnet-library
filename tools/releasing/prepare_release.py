@@ -16,7 +16,8 @@ What it does, in order:
        anything else    -> the third part
   4. lists the issues still open as known issues (a "Known issue:" line in the issue, else its title); issues labelled
      enhancement, documentation, tech-debt, ci, release, question, needs-triage or no-release-notes are not known issues;
-  5. writes <Version> in Directory.Build.props and puts an entry at the top of CHANGELOG.md.
+  5. with --stable, releases the stable version of a pre-release (1.1.0-alpha becomes 1.1.0) instead of raising a part;
+  6. writes <Version> in Directory.Build.props and puts an entry at the top of CHANGELOG.md.
 
 Nothing is committed, tagged or published here. The workflow pushes a release/vX.Y.Z branch for review; the tag that
 publishes stays a deliberate, manual act (see CONTRIBUTING.md).
@@ -82,6 +83,14 @@ def next_version(current, bump):
     if bump == "breaking":
         return f"{design}.{breaking + 1}.0{suffix}"
     return f"{design}.{breaking}.{compatible + 1}{suffix}"
+
+
+def stable_version(current):
+    """The stable version of a pre-release: the same three numbers without the suffix (1.1.0-alpha is released as 1.1.0)."""
+    design, breaking, compatible, suffix = parse_version(current)
+    if not suffix:
+        raise ValueError(f"{current} is already stable")
+    return f"{design}.{breaking}.{compatible}"
 
 
 def release_note(issue, pr_bodies):
@@ -253,6 +262,7 @@ def main():
     ap.add_argument("--bump", choices=["auto", "design", "breaking", "compatible"], default="auto")
     ap.add_argument("--since", help="tag to release since (default: the newest v* tag)")
     ap.add_argument("--suffix", help="replace the pre-release suffix, for example -beta; '' removes it (the owner's decision)")
+    ap.add_argument("--stable", action="store_true", help="release the stable version of the current pre-release: drop the suffix and keep the numbers (1.1.0-alpha -> 1.1.0)")
     ap.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     args = ap.parse_args()
 
@@ -261,18 +271,32 @@ def main():
     since = run("git", "log", "-1", "--format=%cI", tag) if tag else "1970-01-01T00:00:00Z"
     issues, prs_by_issue = fetch(since)
     entries = build_entries(issues, prs_by_issue)
-    if not entries:
+    if args.stable and args.suffix is not None:
+        sys.exit("--stable and --suffix both choose the suffix: use one of them")
+    if not entries and not args.stable:
         print(f"Nothing to release: no issue closed as completed since {tag or 'the start'} ({since}) carries release notes.")
         return 0
 
     props = (root / PROPS).read_text()
     current = re.search(r"<Version>([^<]+)</Version>", props)[1]
-    bump = choose_bump(entries) if args.bump == "auto" else args.bump
-    version = next_version(current, bump)
-    if args.suffix is not None:
-        version = re.sub(r"-.*$", "", version) + args.suffix
+    if args.stable:
+        try:
+            version = stable_version(current)
+        except ValueError as e:
+            sys.exit(f"{e}: run without --stable to raise the version")
+        bump = "stable"
+    else:
+        bump = choose_bump(entries) if args.bump == "auto" else args.bump
+        version = next_version(current, bump)
+        if args.suffix is not None:
+            version = re.sub(r"-.*$", "", version) + args.suffix
 
     print(f"Last release: {tag} ({since})\nCurrent version: {current}\nBump: {bump}  ->  {version}\n")
+    if args.stable and tag and "-" in tag:
+        print(f"Note: the entry lists the issues closed since {tag}, which is itself a pre-release; what changed before it is in its own entry.\n"
+              "      Add those lines by hand if the notes of the stable version should stand on their own.\n")
+    elif not args.stable and parse_version(current)[3]:
+        print(f"Note: {current} is a pre-release. To release its stable version ({stable_version(current)}) run again with --stable.\n")
     for e in entries:
         print(f"  #{e['number']:<4} {e['bump']:<11} {e['category']:<9} {e['text']}")
     print()
