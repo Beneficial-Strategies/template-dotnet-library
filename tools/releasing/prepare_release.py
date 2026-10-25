@@ -10,6 +10,9 @@ What it does, in order:
   3. chooses the bump from the labels of those issues (highest wins):
        redesign         -> the first part   (the others reset)
        breaking-change  -> the second part  (the third resets)
+       tightens         -> the second part  (the type refuses input it used to accept)
+       changes-output   -> the second part  (the same value is written differently)
+       loosens          -> the third part   (the type accepts more; add breaking-change if code depends on the old limit)
        anything else    -> the third part
   4. writes <Version> in Directory.Build.props and puts an entry at the top of CHANGELOG.md.
 
@@ -28,7 +31,7 @@ from datetime import date
 from pathlib import Path
 
 DESIGN_LABELS = {"redesign"}
-BREAKING_LABELS = {"breaking-change"}
+BREAKING_LABELS = {"breaking-change", "tightens", "changes-output"}
 ADDED_LABELS = {"enhancement"}
 SKIP_LABELS = {"no-release-notes"}
 PROPS = "Directory.Build.props"

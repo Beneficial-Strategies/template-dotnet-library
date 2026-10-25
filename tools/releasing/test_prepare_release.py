@@ -15,6 +15,17 @@ class Bump(unittest.TestCase):
         e = r.build_entries([issue(1, "a", "breaking-change"), issue(2, "b", "redesign")], {})
         self.assertEqual("design", r.choose_bump(e))
 
+    def test_tightening_and_a_changed_output_are_breaking_and_loosening_is_not(self):
+        for label in ("tightens", "changes-output"):
+            e = r.build_entries([issue(1, "a", "bug", label)], {})
+            self.assertEqual("breaking", r.choose_bump(e))
+            self.assertEqual("breaking", e[0]["category"])
+        e = r.build_entries([issue(1, "a", "bug", "loosens")], {})
+        self.assertEqual("compatible", r.choose_bump(e))
+        self.assertEqual("fixed", e[0]["category"])
+        e = r.build_entries([issue(1, "a", "loosens", "breaking-change")], {})
+        self.assertEqual("breaking", r.choose_bump(e))
+
     def test_everything_else_is_the_third_part(self):
         self.assertEqual("compatible", r.choose_bump(r.build_entries([issue(1, "a", "bug"), issue(2, "b", "documentation"), issue(3, "c", "enhancement")], {})))
 
