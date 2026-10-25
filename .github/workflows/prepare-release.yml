@@ -16,6 +16,10 @@ on:
         description: "Replace the pre-release suffix, for example -beta; empty keeps it"
         type: string
         default: ""
+      stable:
+        description: Release the stable version of the current pre-release (1.1.0-alpha becomes 1.1.0)
+        type: boolean
+        default: false
       dry_run:
         description: Show the version and the entry in the job summary and push nothing
         type: boolean
@@ -45,10 +49,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BUMP: ${{ inputs.bump }}
           SUFFIX: ${{ inputs.suffix }}
+          STABLE: ${{ inputs.stable }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           args=(--bump "$BUMP")
           [ -n "$SUFFIX" ] && args+=(--suffix "$SUFFIX")
+          [ "$STABLE" = "true" ] && args+=(--stable)
           [ "$DRY_RUN" = "true" ] && args+=(--dry-run)
           python3 tools/releasing/prepare_release.py "${args[@]}" | tee release-plan.txt
           { echo '```text'; cat release-plan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
