@@ -155,6 +155,70 @@ def set_version(props_text, new):
     return out
 
 
+def find_package_id(root):
+    """The NuGet id of the package, from the first <PackageId> under src/, or None."""
+    for project in sorted((root / "src").rglob("*.csproj")):
+        m = re.search(r"<PackageId>([^<]+)</PackageId>", project.read_text(encoding="utf-8"))
+        if m:
+            return m[1]
+    return None
+
+
+def next_steps(version, repo_url=None, package_id=None, workflow=False, dry_run=False):
+    """The steps from the written files to a published package, each with the reason for it (a training aid).
+
+    workflow: the Prepare release workflow pushes the branch itself, so the steps start at the pull request.
+    """
+    tag, branch = f"v{version}", f"release/v{version}"
+    steps = []
+    if not workflow:
+        steps += [
+            ("Put the release on its own branch.",
+             "main stays untouched until someone has reviewed the version and the notes.",
+             [f"git checkout -b {branch}"]),
+            ("Check that only the version and the notes changed.",
+             "A release commit should carry nothing else. Expect Directory.Build.props and CHANGELOG.md.",
+             ["git status", "git diff"]),
+            ("Commit the two files.",
+             "This is the one commit that says 'this is version " + version + "'.",
+             ["git add Directory.Build.props CHANGELOG.md", f'git commit -m "Release {version}: version and changelog"']),
+            ("Push the branch.",
+             "GitHub needs the branch before it can show a pull request.",
+             [f"git push -u origin {branch}"]),
+        ]
+    steps += [
+        ("Open a pull request from the release branch into main.",
+         "The checks run on it and the changelog gets a last review. Branches named release/ need no linked issue. "
+         f"Title: Release {version}. A one-line body is enough.",
+         [f"{repo_url}/compare/main...{branch}?expand=1&title=Release%20{version}" if repo_url else "open it from the branch page on GitHub"]),
+        ("Merge it when the checks are green.",
+         "This puts the version and the notes on main. A squash or a regular merge both work, because the tag is placed afterwards. "
+         "Merging publishes nothing.",
+         []),
+        ("Bring main up to date and look at the release commit.",
+         "The tag must go on the commit that is now the tip of main; with a squash merge that is a new commit, not the one on your branch.",
+         ["git checkout main", "git pull", "git log -1 --oneline", "grep '<Version>' Directory.Build.props"]),
+        ("Tag that commit.",
+         f"A tag is a permanent name for one commit. {tag} names the release, and the version in the package comes from the props file you just merged.",
+         [f"git tag {tag}"]),
+        ("Push the tag.",
+         "Pushing a tag that starts with v is what tells GitHub to run Publish to NuGet. Nothing is uploaded until you do this, and a published version cannot be taken back.",
+         [f"git push origin {tag}"]),
+        ("Watch the publish and find the package.",
+         "The workflow builds, tests and publishes. nuget.org can take several minutes to list the new version.",
+         ([f"{repo_url}/actions" if repo_url else "the Actions tab of the repository"]
+          + ([f"https://www.nuget.org/packages/{package_id}/{version}"] if package_id else []))),
+    ]
+    lines = ["What to do next (each step says why):", ""]
+    if dry_run:
+        lines += ["Nothing has been written yet; after the real run these are the steps.", ""]
+    for i, (what, why, commands) in enumerate(steps, 1):
+        lines += [f"{i}. {what}", f"   Why: {why}"]
+        lines += [f"   $ {c}" if not c.startswith("http") and not c.startswith("the ") and not c.startswith("open ") else f"   {c}" for c in commands]
+        lines.append("")
+    return "\n".join(lines)
+
+
 # ---- GitHub and git ----
 
 def run(*args):
@@ -229,6 +293,12 @@ def main():
         for path, text in writes.items():
             (root / path).write_text(text)
         print(f"Wrote {len(writes)} files.")
+    try:
+        repo_url = run("gh", "repo", "view", "--json", "url", "--jq", ".url")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        repo_url = None
+    print()
+    print(next_steps(version, repo_url, find_package_id(root), workflow=bool(os.environ.get("GITHUB_ACTIONS")), dry_run=args.dry_run))
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"version={version}\nbump={bump}\n")
