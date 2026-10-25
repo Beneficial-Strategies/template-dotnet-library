@@ -55,6 +55,27 @@ class Entries(unittest.TestCase):
         self.assertEqual("Title", e[0]["text"])
 
 
+class NextSteps(unittest.TestCase):
+    def test_the_steps_use_the_version_and_say_why(self):
+        text = r.next_steps("1.1.0-alpha", "https://github.com/o/r", "O.Package")
+        for expected in ("git checkout -b release/v1.1.0-alpha", "git tag v1.1.0-alpha", "git push origin v1.1.0-alpha",
+                         "https://github.com/o/r/compare/main...release/v1.1.0-alpha", "https://www.nuget.org/packages/O.Package/1.1.0-alpha"):
+            self.assertIn(expected, text)
+        self.assertEqual(text.count("Why:"), 10)
+
+    def test_the_workflow_has_already_pushed_the_branch(self):
+        text = r.next_steps("1.1.0-alpha", "https://github.com/o/r", None, workflow=True)
+        self.assertNotIn("git checkout -b", text)
+        self.assertNotIn("https://www.nuget.org/packages", text)
+        self.assertTrue(text.index("Open a pull request") < text.index("git tag"))
+
+    def test_without_a_repository_the_steps_still_read(self):
+        self.assertIn("open it from the branch page", r.next_steps("1.0.1", None, None))
+
+    def test_a_dry_run_says_nothing_was_written(self):
+        self.assertIn("Nothing has been written yet", r.next_steps("1.0.1", None, None, dry_run=True))
+
+
 class KnownIssues(unittest.TestCase):
     def test_open_issues_are_known_issues_except_the_ones_a_consumer_does_not_need(self):
         k = r.build_known_issues([
