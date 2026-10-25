@@ -55,6 +55,25 @@ class Entries(unittest.TestCase):
         self.assertEqual("Title", e[0]["text"])
 
 
+class KnownIssues(unittest.TestCase):
+    def test_open_issues_are_known_issues_except_the_ones_a_consumer_does_not_need(self):
+        k = r.build_known_issues([
+            issue(3, "A limit", "help wanted"), issue(1, "A bug", "bug"), issue(2, "A wish", "enhancement"),
+            issue(4, "Tooling", "ci"), issue(5, "Skip", "bug", "no-release-notes"), issue(6, "New", "needs-triage"),
+        ])
+        self.assertEqual([1, 3], [x["number"] for x in k])
+
+    def test_known_issue_line_beats_the_title(self):
+        k = r.build_known_issues([issue(1, "Title", "bug", body="x\nKnown issue: Refuses Z.\n")])
+        self.assertEqual("Refuses Z.", k[0]["text"])
+
+    def test_known_issues_come_last_in_the_entry(self):
+        e = r.build_entries([issue(2, "Fix thing", "bug")], {})
+        k = r.build_known_issues([issue(9, "A limit", "help wanted")])
+        self.assertEqual(
+            "## 1.0.1 (2026-10-23)\n\n* Fixed: Fix thing (#2).\n* Known issue: A limit (#9).\n", r.render_entry("1.0.1", e, "2026-10-23", k))
+
+
 class Render(unittest.TestCase):
     def test_entry_is_ordered_by_heading(self):
         e = r.build_entries([issue(2, "Fix thing", "bug"), issue(1, "New code set", "enhancement"), issue(3, "Rename", "breaking-change")], {})

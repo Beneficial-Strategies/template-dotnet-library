@@ -14,7 +14,9 @@ What it does, in order:
        changes-output   -> the second part  (the same value is written differently)
        loosens          -> the third part   (the type accepts more; add breaking-change if code depends on the old limit)
        anything else    -> the third part
-  4. writes <Version> in Directory.Build.props and puts an entry at the top of CHANGELOG.md.
+  4. lists the issues still open as known issues (a "Known issue:" line in the issue, else its title); issues labelled
+     enhancement, documentation, tech-debt, ci, release, question, needs-triage or no-release-notes are not known issues;
+  5. writes <Version> in Directory.Build.props and puts an entry at the top of CHANGELOG.md.
 
 Nothing is committed, tagged or published here. The workflow pushes a release/vX.Y.Z branch for review; the tag that
 publishes stays a deliberate, manual act (see CONTRIBUTING.md).
@@ -34,6 +36,8 @@ DESIGN_LABELS = {"redesign"}
 BREAKING_LABELS = {"breaking-change", "tightens", "changes-output"}
 ADDED_LABELS = {"enhancement"}
 SKIP_LABELS = {"no-release-notes"}
+# open issues with one of these labels are not something a consumer needs to know about
+NOT_KNOWN_ISSUES = {"enhancement", "documentation", "tech-debt", "ci", "release", "question", "needs-triage", "duplicate", "invalid", "wontfix"} | SKIP_LABELS
 PROPS = "Directory.Build.props"
 CHANGELOG = "CHANGELOG.md"
 CATEGORIES = [("breaking", "Breaking change"), ("added", "Added"), ("fixed", "Fixed"), ("changed", "Changed")]
@@ -107,14 +111,32 @@ def build_entries(issues, prs_by_issue):
     return sorted(entries, key=lambda e: e["number"])
 
 
-def render_entry(version, entries, today):
-    """One version's entry: a heading with the date, then a line per issue grouped under the headings."""
+def known_issue_note(issue):
+    """A 'Known issue:' line in the issue, else its title."""
+    m = re.search(r"^\s*known issue:[ \t]*(.+?)\s*$", issue.get("body") or "", re.IGNORECASE | re.MULTILINE)
+    return m[1] if m and not m[1].startswith("<!--") else issue["title"].strip()
+
+
+def build_known_issues(open_issues):
+    """The open issues a consumer should know about when the version is released."""
+    known = []
+    for issue in open_issues:
+        if {l["name"] for l in issue.get("labels", [])} & NOT_KNOWN_ISSUES:
+            continue
+        known.append({"number": issue["number"], "text": known_issue_note(issue)})
+    return sorted(known, key=lambda k: k["number"])
+
+
+def render_entry(version, entries, today, known=()):
+    """One version's entry: a heading with the date, a line per issue grouped under the headings, then the known issues."""
     lines = [f"## {version} ({today})", ""]
     if not entries:
         lines.append("No changes.")
     for key, heading in CATEGORIES:
         for e in (x for x in entries if x["category"] == key):
             lines.append(f"* {heading}: {e['text'].rstrip('.')} (#{e['number']}).")
+    for k in known:
+        lines.append(f"* Known issue: {k['text'].rstrip('.')} (#{k['number']}).")
     return "\n".join(lines) + "\n"
 
 
@@ -158,6 +180,10 @@ def fetch(since_iso):
     return issues, by_issue
 
 
+def fetch_open():
+    return json.loads(run("gh", "issue", "list", "--state", "open", "--limit", "500", "--json", "number,title,labels,body"))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--bump", choices=["auto", "design", "breaking", "compatible"], default="auto")
@@ -186,7 +212,12 @@ def main():
     for e in entries:
         print(f"  #{e['number']:<4} {e['bump']:<11} {e['category']:<9} {e['text']}")
     print()
-    entry = render_entry(version, entries, date.today().isoformat())
+    known = build_known_issues(fetch_open())
+    for k in known:
+        print(f"  #{k['number']:<4} known issue {k['text']}")
+    if known:
+        print()
+    entry = render_entry(version, entries, date.today().isoformat(), known)
     writes = {
         PROPS: set_version(props, version),
         CHANGELOG: add_entry((root / CHANGELOG).read_text(), entry),
