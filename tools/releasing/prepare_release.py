@@ -30,7 +30,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 DESIGN_LABELS = {"redesign"}
@@ -239,6 +239,19 @@ def last_tag():
     return tags[0] if tags else None
 
 
+def release_cutoff(tag):
+    """When the notes of `tag` ended: the later of the tag's commit and the commit that added its heading to CHANGELOG.md.
+    A squash merge puts that heading on a newer commit than the one the tag was first made on."""
+    cutoff = run("git", "log", "-1", "--format=%cI", tag)
+    try:
+        merged = run("git", "log", "-1", "--format=%cI", f"-S## {tag[1:]} ", "--", "CHANGELOG.md")
+    except subprocess.CalledProcessError:
+        merged = ""
+    if not merged:
+        return cutoff
+    return max(cutoff, merged, key=datetime.fromisoformat)
+
+
 def fetch(since_iso):
     issues = json.loads(run(
         "gh", "issue", "list", "--state", "closed", "--limit", "500", "--search", f"closed:>{since_iso}",
@@ -268,7 +281,7 @@ def main():
 
     root = Path(run("git", "rev-parse", "--show-toplevel"))
     tag = args.since or last_tag()
-    since = run("git", "log", "-1", "--format=%cI", tag) if tag else "1970-01-01T00:00:00Z"
+    since = release_cutoff(tag) if tag else "1970-01-01T00:00:00Z"
     issues, prs_by_issue = fetch(since)
     entries = build_entries(issues, prs_by_issue)
     if args.stable and args.suffix is not None:

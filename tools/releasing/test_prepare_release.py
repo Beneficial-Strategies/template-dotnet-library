@@ -1,3 +1,6 @@
+import os
+import subprocess
+import tempfile
 import unittest
 import prepare_release as r
 
@@ -120,6 +123,27 @@ class Render(unittest.TestCase):
 
     def test_version_is_replaced_in_the_props(self):
         self.assertEqual("<Version>1.1.0-alpha</Version>", r.set_version("<Version>1.0.0-alpha</Version>", "1.1.0-alpha"))
+
+
+class Cutoff(unittest.TestCase):
+    def test_squash_merge_after_the_tag_commit_moves_the_cutoff_to_the_merge(self):
+        with tempfile.TemporaryDirectory() as d:
+            def git(*a, when):
+                env = dict(os.environ, GIT_AUTHOR_DATE=when, GIT_COMMITTER_DATE=when,
+                           GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+                subprocess.run(("git",) + a, cwd=d, env=env, check=True, capture_output=True)
+            git("init", "-q", when="2026-01-01T08:00:00-05:00")
+            git("commit", "-q", "--allow-empty", "-m", "branch commit", when="2026-01-01T08:00:00-05:00")
+            git("tag", "v1.0.0-alpha", when="2026-01-01T08:00:00-05:00")
+            open(os.path.join(d, "CHANGELOG.md"), "w").write("## 1.0.0-alpha (2026-01-01)\n\n* x\n")
+            git("add", "CHANGELOG.md", when="2026-01-01T09:00:00-05:00")
+            git("commit", "-q", "-m", "squash merge", when="2026-01-01T09:00:00-05:00")
+            cwd = os.getcwd()
+            os.chdir(d)
+            try:
+                self.assertEqual("2026-01-01T09:00:00-05:00", r.release_cutoff("v1.0.0-alpha"))
+            finally:
+                os.chdir(cwd)
 
 
 if __name__ == "__main__":
