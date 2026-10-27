@@ -5,7 +5,7 @@ the template's own files. Run it once, in the new repository, before anything el
   python3 .template/instantiate.py --repo iso-20022-messages --package-id BeneficialStrategies.Iso20022.Messages \\
       --description "One sentence that says what the package is and does."
 
-  --repo            the repository name, as registered (STD-NAM-001), lowercase with hyphens
+  --repo            the repository name, as registered (STD-NAM-REPO), lowercase with hyphens
   --package-id      the package id and assembly name: BeneficialStrategies. and the repository name in PascalCase
   --description     one sentence; it becomes the first line of the README, the package description and the repository About text
   --workspace-path  where the repository is cloned in a workspace (default iso-20022/<repo>)
